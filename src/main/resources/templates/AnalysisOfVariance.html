@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Analysis Of Variance page</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+</head>
+
+<body>
+
+    <header th:insert="blocks/header.html :: header-simple"></header>
+
+    <div class="container mt-5">
+        <h4 class="text-center">Дисперсионный анализ</h4>
+        <form id="uploadForm" action="/upload-data-AVONA" method="post" enctype="multipart/form-data" class="text-center mt-4">
+            <div class="form-group">
+                <label for="fileInput" class="btn btn-outline-primary btn-lg">Загрузка входных данных</label>
+                <input type="file" id="fileInput" name="file" class="form-control-file d-none" accept=".xls,.xlsx" required>
+            </div>
+        </form>
+    
+        <div class="card mx-auto" style="width: 60%;">
+            <div class="card-body">
+                <p class="text-center"><u>Описание формата excel-файла для корректного считывания входных данных</u></p>
+                <ol class="mb-0">
+                    Один лист: 
+                        <ul>
+                            <li class="mt-2">Первая строка - названия платформ (в отдельных столбцах)</li>
+                            <li class="mt-2">Последующие строки - количество продаж строительных материалов по дням</li>
+                        </ul>
+                </ol>
+            </div>
+        </div>
+
+        <br>
+        <div class="text-center mb-4"><a href="/" class="btn btn-outline-secondary">Вернуться на главную страницу</a></div>
+        
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function () {
+            const form = document.getElementById('uploadForm');
+            if (this.files.length > 0) {
+                form.submit();
+            }
+        });
+    </script>
+
+</body>
+
+</html>

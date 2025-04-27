@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Результаты ANOVA</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+
+    <style>
+        .table-container {
+            max-height: 400px; /* Ограничение высоты таблицы */
+            overflow: auto;
+        }
+
+        .table-container thead th {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 1;
+        }
+
+        .table-container tbody tr {
+            height: 50px; /* Упрощает расчет для привязки прокрутки */
+        }
+
+        .table-container tbody {
+            scroll-snap-type: y mandatory; /* Для привязки строки к границе */
+        }
+
+        .table-container tbody tr {
+            scroll-snap-align: start; /* Элементы привязываются к началу строки */
+        }
+
+        td.highlight {
+            background-color: #e7f1d1;
+        }
+    </style>
+
+</head>
+
+<body>
+
+<header th:insert="blocks/header.html :: header-simple"></header>
+
+<div class="container mt-5">
+    <h4 class="text-center">Дисперсионный анализ</h4><br>
+    
+    <!-- Таблица входных данных -->
+    <div class="mb-4">
+        <h5 class="text-center">Входные данные</h5>
+        <div class="table-container">
+            <table class="table table-bordered text-center">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>День</th>
+                        <th th:each="name : ${names}" th:text="${name}"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="salesRow, iter : ${sales}">
+                        <td th:text="${iter.index}+1"></td>
+                        <td th:each="sale : ${salesRow}" th:text="${sale}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Таблица средних значений по столбцам -->
+    <div class="mb-4">
+        <h5 class="text-center">Расчеты</h5>
+        <div class="table-container">
+            <table class="table table-bordered text-center">
+                <thead class="thead-dark">
+                    <tr>
+                        <th></th>
+                        <th th:each="name : ${names}" th:text="${name}"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Среднее значение</td>
+                        <td th:each="value : ${averageValues}" th:text="${#numbers.formatDecimal(value, 1, 3)}"></td>
+                    </tr>
+                    <tr>
+                        <td>Сумма квадратов значений</td>
+                        <td th:each="value : ${sumSquares}" th:text="${#numbers.formatDecimal(value, 1, 3)}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <div class="table-container">
+            <table class="table table-bordered text-center">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Источник дисперсии</th>
+                        <th>Сумма квадратов</th>
+                        <th>Число степеней свободы</th>
+                        <th>Дисперсия</th>
+                        <th>Выборочное значение статистики Фишера</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Фактор</td>
+                        <td th:text="${#numbers.formatDecimal(anova.Qa, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.Va, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.Sa2, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.f, 1, 3)}"></td>
+                    </tr>
+                    <tr>
+                        <td>Остаток</td>
+                        <td th:text="${#numbers.formatDecimal(anova.Qe, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.Ve, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.Se2, 1, 3)}"></td>
+                        <td></td>                   
+                    </tr>
+                    <tr>
+                        <td>Общая</td>
+                        <td th:text="${#numbers.formatDecimal(anova.Q, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.V, 1, 3)}"></td>
+                        <td th:text="${#numbers.formatDecimal(anova.S2, 1, 3)}"></td>
+                        <td></td>                      
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Результаты ANOVA -->
+    <h5 class="text-center">Результаты дисперсионного анализа (Статистика ANOVA)</h5>
+    <div class="card mb-4">
+        <table class="table table-bordered">
+            <tr>
+                <th>F-статистика (F<sub>0</sub>)</th>
+                <td th:text="${#numbers.formatDecimal(anova.fValue, 1, 3)}"></td>
+            </tr>
+            <tr>
+                <th>Критическое значение (α=0.05)</th>
+                <td th:text="${#numbers.formatDecimal(anova.criticalValue, 1, 3)}"></td>
+            </tr>
+            <tr>
+                <th>p-значение</th>
+                <td th:text="${#numbers.formatDecimal(anova.pValue, 1, 4)}"></td>
+            </tr>
+            <tr th:class="${anova.pValue < 0.05 ? 'table-success' : 'table-danger'}">
+                <th>Вывод</th>
+                <td th:text="${anova.pValue < 0.05 ? 
+                    'Есть статистически значимые различия между платформами' : 
+                    'Нет значимых различий между платформами'}"></td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- График F-распределения -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="text-center">График F-распределения</h5>
+            <div class="chart-container">
+                <canvas id="fDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mb-4">
+        <a href="/" class="btn btn-outline-secondary">На главную</a>
+    </div>
+</div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+document.addEventListener('DOMContentLoaded', function() {
+    // Получаем данные из Thymeleaf
+    const fValue = /*[[${anova.fValue}]]*/ 0;
+    const criticalValue = /*[[${anova.criticalValue}]]*/ 0;
+    const k1 = /*[[${anova.Va}]]*/ 0;
+    const k2 = /*[[${anova.Ve}]]*/ 0;
+    
+    // Определяем оптимальные границы графика
+    const maxVisibleX = Math.max(fValue * 1.2, criticalValue* 1.2);
+    
+    // Генерируем данные для графика
+    const labels = [];
+    const data = [];
+    
+    for (let x = 0; x <= maxVisibleX * 1.2; x += 1) {
+        labels.push(x.toFixed(2));
+        data.push(fDistributionPDF(x, k1, k2));
+    }
+    
+    // Находим максимальное значение плотности
+    const maxY = Math.max(...data) * 1.1;
+    
+    // Создаем график
+    const ctx = document.getElementById('fDistributionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `F(${k1},${k2}) распределение`,
+                data: data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.2 // Сглаживание кривой
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Значение F',
+                        font: {
+                            size: 14
+                        }
+                    },
+                    min: 0,
+                    max: maxVisibleX,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Плотность вероятности',
+                        font: {
+                            size: 14
+                        }
+                    },
+                    min: 0,
+                    max: maxY,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                }
+            },
+            plugins: {
+                annotation: {
+                    annotations: {
+                        line1: {
+                            type: 'line',
+                            yMin: 0,
+                            yMax: maxY,
+                            xMin: criticalValue,
+                            xMax: criticalValue,
+                            borderColor: 'rgb(255, 99, 132)',
+                            borderWidth: 2,
+                            borderDash: [6, 6],
+                            label: {
+                                content: `Критическое значение: ${criticalValue.toFixed(3)}`,
+                                enabled: true,
+                                position: 'top',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        line2: {
+                            type: 'line',
+                            yMin: 0,
+                            yMax: maxY,
+                            xMin: fValue,
+                            xMax: fValue,
+                            borderColor: 'rgb(54, 162, 235)',
+                            borderWidth: 2,
+                            borderDash: [2, 2],
+                            label: {
+                                content: `F-статистика: ${fValue.toFixed(3)}`,
+                                enabled: true,
+                                position: 'top',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 14
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return [
+                                `Значение F: ${context.label}`,
+                                `Плотность: ${context.parsed.y.toFixed(3)}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+// Функция плотности F-распределения (улучшенная версия)
+/*function fDistributionPDF(x, k1, k2) {
+    if (x <= 0) return 0;
+    const halfK1 = k1 / 2;
+    const halfK2 = k2 / 2;
+    const numerator = Math.pow(k1 * x, k1) * Math.pow(k2, k2);
+    const denominator = Math.pow(k1 * x + k2, k1 + k2);
+    const coefficient = Math.sqrt(numerator / denominator) / (x * beta(halfK1, halfK2));
+    return coefficient;
+}*/
+
+function fDistributionPDF(x, k1, k2) {
+    if (x <= 0) return 0;
+    const halfK1 = k1 / 2;
+    const halfK2 = k2 / 2;
+    
+    // Логарифмическая форма
+    const logNum = k1 * Math.log(k1 * x) + k2 * Math.log(k2);
+    const logDenom = (k1 + k2) * Math.log(k1 * x + k2);
+    const logCoeff = 0.5 * (logNum - logDenom) - Math.log(x) - Math.log(beta(halfK1, halfK2));
+    
+    return Math.exp(logCoeff);
+}
+
+// Бета-функция
+function beta(a, b) {
+    return Math.exp(logGamma(a) + logGamma(b) - logGamma(a + b));
+}
+
+// Логарифм гамма-функции (точная аппроксимация)
+function logGamma(x) {
+    const cof = [
+        76.18009172947146, -86.50532032941677, 24.01409824083091,
+        -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5
+    ];
+    let ser = 1.000000000190015;
+    let tmp = x + 5.5;
+    
+    for (let j = 0; j < 6; j++) {
+        ser += cof[j] / (x + j + 1);
+    }
+    
+    return Math.log(2.5066282746310005 * ser / x) - tmp + (x + 0.5) * Math.log(tmp);
+}
+/*]]>*/
+</script>
+
+<style>
+    .chart-container {
+        position: relative;
+        height: 600px; /* Увеличили высоту графика */
+        width: 100%;
+        margin: 20px 0;
+    }
+</style>
+
+</body>
+</html>
