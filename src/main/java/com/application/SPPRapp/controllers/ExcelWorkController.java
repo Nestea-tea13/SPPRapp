@@ -16,7 +16,7 @@ import com.application.SPPRapp.SppRappApplication;
 public class ExcelWorkController {
 
     @PostMapping("/upload-data-AVONA")
-    public String handleFileUpload(MultipartFile file, Model model) {
+    public String handleFileUploadAVONA(MultipartFile file, Model model) {
         if (file.isEmpty()) {
             model.addAttribute("message", "Пожалуйста, выберите файл для загрузки.");
             return "main";
@@ -32,5 +32,21 @@ public class ExcelWorkController {
         return "redirect:/upload-result-AVONA";
     }
 
-    
+    @PostMapping("/upload-data-risk-theory")
+    public String handleFileUploadRiskTheory(MultipartFile file, Model model) {
+        if (file.isEmpty()) {
+            model.addAttribute("message", "Пожалуйста, выберите файл для загрузки.");
+            return "main";
+        }
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            SppRappApplication.dataRiskTheory.ReadDataSheet1(workbook.getSheetAt(0));
+            SppRappApplication.dataRiskTheory.ReadDataSheet2(workbook.getSheetAt(1));
+        } catch (IOException e) {
+        model.addAttribute("message", "Ошибка при чтении файла: " + e.getMessage());
+        }
+
+        return "redirect:/upload-result-risk-theory";
+    }
+
 }

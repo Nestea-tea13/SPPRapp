@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Результаты теории рисков</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+
+    <style>
+        .table-container {
+            max-height: 400px; /* Ограничение высоты таблицы */
+            overflow: auto;
+        }
+
+        .table-container thead th {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 1;
+        }
+
+        .table-container tbody tr {
+            height: 50px; /* Упрощает расчет для привязки прокрутки */
+        }
+
+        .table-container tbody {
+            scroll-snap-type: y mandatory; /* Для привязки строки к границе */
+        }
+
+        .table-container tbody tr {
+            scroll-snap-align: start; /* Элементы привязываются к началу строки */
+        }
+
+        td.highlight {
+            background-color: #e7f1d1;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 600px;
+            margin: 20px auto;
+        }
+
+        .risk-point {
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .risk-matrix {
+            background: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            table-layout: fixed;
+        }
+
+        .risk-matrix td, .risk-matrix th {
+            width: 150px;
+            height: 120px;
+            vertical-align: middle;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .codes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            overflow-y: auto;
+            max-height: 110px;
+        }
+        .group-1 { background: #4CAF50!important; }
+        .group-last { background: #f44336!important; }
+
+        .custom-tooltip {
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 300px;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header th:insert="blocks/header.html :: header-simple"></header>
+
+<div class="container mt-5">
+    <h4 class="text-center">Теория рисков</h4><br>
+    
+    <!-- Таблица входных данных -->
+    <div class="mb-4">
+        <h5 class="text-center">Входные данные</h5>
+        <div class="table-container">
+            <table class="table table-bordered text-center">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Код</th>
+                        <th>Название</th>
+                        <th>Ущерб</th>
+                        <th>Вероятность</th>
+                        <th>Опасность</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="code, iter : ${codes}">
+                        <td th:text="${code}"></td>
+                        <td th:text="${risks[iter.index]}"></td>
+                        <td th:text="${damages[iter.index]}"></td>
+                        <td th:text="${probabilities[iter.index]}"></td>
+                        <td th:text="${dangers[iter.index]}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h5 class="text-center">Диапазоны групп для карты рисков</h5>
+        <div class="table-container">
+            <table class="table table-bordered text-center">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>№</th>
+                        <th>От</th>
+                        <th>До</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="border, iter : ${borders}">
+                        <td th:text="${iter.index}+1"></td>
+                        <td th:text="${border[0]}"></td>
+                        <td th:text="${border[1]}"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="text-center">Распределение рисков</h5>
+            <div class="chart-container">
+                <canvas id="riskMapChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="text-center">Карта рисков</h5><br>
+            <div id="matrix-container" class="d-flex justify-content-center"></div>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-danger" id="top-risks-card">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">⚠️ Топ-3 наиболее опасных риска</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Обратите особое внимание на эти риски при выборе онлайн-платформы:</p>
+            <div class="list-group" id="top-risks-list"></div>
+        </div>
+    </div>
+
+    <div class="text-center mb-4">
+        <a href="/" class="btn btn-outline-secondary">На главную</a>
+    </div>
+</div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+document.addEventListener('DOMContentLoaded', function() {
+    // Получаем данные из Thymeleaf
+    const codes = /*[[${codes}]]*/ [];
+    const risks = /*[[${risks}]]*/ [];
+    const damages = /*[[${damages}]]*/ [];
+    const probabilities = /*[[${probabilities}]]*/ [];
+    const borders = /*[[${borders}]]*/ [];
+    
+    // Подготовка данных для графика
+    const riskData = codes.map((code, index) => ({
+        code: code,
+        risk: risks[index],
+        x: damages[index],
+        y: probabilities[index],
+        danger: damages[index] * probabilities[index]
+    }));
+    
+    // Находим максимальные значения для осей
+    const maxDamage = Math.max(...damages) * 1.1;
+    const maxProbability = Math.max(...probabilities) * 1.1;
+    
+    // Создаем цветовые зоны на основе borders
+    const zoneAnnotations = borders.map((border, index) => {
+        // Цвета от зеленого к красному
+        const colors = [
+            'rgba(0, 255, 0, 0.1)',    // зеленый
+            'rgba(255, 255, 0, 0.1)',   // желтый
+            'rgba(255, 165, 0, 0.1)',   // оранжевый
+            'rgba(255, 0, 0, 0.1)'      // красный
+        ];
+        
+        return {
+            type: 'box',
+            xMin: border[0],
+            xMax: border[1],
+            yMin: 0,
+            yMax: maxProbability,
+            backgroundColor: colors[index % colors.length],
+            borderColor: 'rgba(0, 0, 0, 0.5)',
+            borderWidth: 1,
+            label: {
+                content: `Зона ${index+1}`,
+                enabled: true,
+                position: 'top'
+            }
+        };
+    });
+    
+    // Создаем график
+    const ctx = document.getElementById('riskMapChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Риски',
+                data: riskData.map(item => ({
+                    x: item.x,
+                    y: item.y,
+                    code: item.code,
+                    risk: item.risk,
+                    danger: item.danger
+                })),
+                backgroundColor: riskData.map(item => {
+                    // Цвет в зависимости от уровня опасности
+                    const danger = item.danger;
+                    const maxDanger = Math.max(...riskData.map(r => r.danger));
+                    const ratio = danger / maxDanger;
+                    
+                    // От зеленого (0) к красному (1)
+                    const r = Math.floor(255 * ratio);
+                    const g = Math.floor(255 * (1 - ratio));
+                    return `rgba(${r}, ${g}, 0, 0.7)`;
+                }),
+                pointRadius: 12,
+                pointHoverRadius: 14
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Ущерб'
+                    },
+                    min: 0,
+                    max: maxDamage
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Вероятность'
+                    },
+                    min: 0,
+                    max: maxProbability
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return [
+                                `Код: ${context.raw.code}`,
+                                `Риск: ${context.raw.risk}`,
+                                `Ущерб: ${context.parsed.x}`,
+                                `Вероятность: ${context.parsed.y}`,
+                                `Опасность: ${context.raw.danger}`
+                            ];
+                        }
+                    }
+                },
+                legend: {
+                    display: false
+                },
+                annotation: {
+                    annotations: zoneAnnotations
+                }
+            },
+            elements: {
+                point: {
+                    // Отображение кода риска на точке
+                    draw: function(ctx, point) {
+                        const style = point.options;
+                        const vm = style.skip ? 0 : style.radius;
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y, vm, 0, Math.PI * 2);
+                        ctx.fillStyle = style.backgroundColor;
+                        ctx.fill();
+                        
+                        // Добавляем текст (код риска)
+                        ctx.font = 'bold 10px Arial';
+                        ctx.fillStyle = 'black';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(point.raw.code, point.x, point.y);
+                    }
+                }
+            }
+        }
+    });
+});
+/*]]>*/
+</script>
+
+<script th:inline="javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    // Получение данных из модели
+    const codes = /*[[${codes}]]*/ [];
+    const risks = /*[[${risks}]]*/ [];
+    const damages = /*[[${damages}]]*/ [];
+    const probabilities = /*[[${probabilities}]]*/ [];
+    const borders = /*[[${borders}]]*/ [];
+    const dangers = /*[[${dangers}]]*/ [];
+    
+    // 2. Формирование топ-3 рисков
+    const calculateTopRisks = () => {
+        const risksData = codes.map((code, i) => ({
+            code: code,
+            name: risks[i],
+            damage: damages[i],
+            probability: probabilities[i],
+            danger: dangers[i]
+        }));
+
+        return risksData
+            .sort((a, b) => b.danger - a.danger)
+            .slice(0, 3);
+    };
+
+    // 3. Отрисовка топ-рисков
+    const renderTopRisks = () => {
+        const container = document.getElementById('top-risks-list');
+        const topRisks = calculateTopRisks();
+        
+        container.innerHTML = topRisks.map(risk => `
+            <div class="list-group-item list-group-item-action">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">${risk.code} - ${risk.name}</h6>
+                        <small class="text-muted">
+                            Ущерб: ${risk.damage}, Вероятность: ${risk.probability}
+                        </small>
+                    </div>
+                    <span class="badge badge-pill badge-danger">
+                        Опасность: ${risk.danger}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    // Создаем кастомный тултип
+    const tooltip = document.createElement('div');
+    tooltip.className = 'custom-tooltip';
+    document.body.appendChild(tooltip);
+
+    // Конфигурация матрицы
+    const groupsCount = borders.length;
+    const lastGroupIndex = groupsCount - 1;
+
+    // Функция определения группы
+    const getGroup = (value) => {
+        for(let i = 0; i < borders.length; i++) {
+            if(value * 10 >= borders[i][0] && value * 10 <= borders[i][1]) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    // Построение матрицы (строки - вероятность, столбцы - ущерб)
+    const buildMatrix = () => {
+        const matrix = Array.from({length: groupsCount}, () => 
+            Array.from({length: groupsCount}, () => [])
+        );
+
+        codes.forEach((code, i) => {
+            const dg = getGroup(damages[i]);
+            const pg = getGroup(probabilities[i]);
+            
+            if(dg >= 0 && pg >= 0) {
+                matrix[pg][dg].push({
+                    code: code,
+                    name: risks[i],
+                    damage: damages[i],
+                    probability: probabilities[i],
+                    danger: dangers[i]
+                });
+            }
+        });
+
+        return matrix;
+    };
+
+    // Обработчики для тултипа
+    const showTooltip = (event, risk) => {
+        tooltip.innerHTML = `
+            <div><strong>Код:</strong> ${risk.code}</div>
+            <div><strong>Риск:</strong> ${risk.name}</div>
+            <div><strong>Ущерб:</strong> ${risk.damage}</div>
+            <div><strong>Вероятность:</strong> ${risk.probability}</div>
+            <div><strong>Опасность:</strong> ${risk.danger}</div>
+        `;
+        tooltip.style.display = 'block';
+        updateTooltipPosition(event);
+    };
+
+    const hideTooltip = () => {
+        tooltip.style.display = 'none';
+    };
+
+    const updateTooltipPosition = (event) => {
+        const offset = 15;
+        const x = event.clientX + offset;
+        const y = event.clientY + offset;
+        
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+    };
+
+    // Отрисовка таблицы
+    const renderMatrix = (matrix) => {
+        const container = document.getElementById('matrix-container');
+        container.innerHTML = '';
+
+        const table = document.createElement('table');
+        table.className = 'risk-matrix table table-bordered mb-0';
+
+        // Заголовки столбцов
+        const headerRow = table.insertRow();
+        headerRow.innerHTML = `
+            <th class="bg-light align-middle">Ущерб<br>(строки)<br>Вероятность<br>(столбцы)</th>
+            ${borders.map((b, i) => `
+                <th class="bg-light align-middle">Группа ${i+1}<br>${b[0]}-${b[1]}</th>
+            `).join('')}
+        `;
+
+        // Тело таблицы
+        borders.forEach((b, rowIdx) => {
+            const tr = table.insertRow();
+            tr.innerHTML = `
+                <th class="bg-light align-middle">Группа ${rowIdx+1}<br>${b[0]}-${b[1]}</th>
+            `;
+
+            matrix[rowIdx].forEach((cell, colIdx) => {
+                const td = document.createElement('td');
+                // Определение цвета
+                const isFirstGroup = (rowIdx === 0 && colIdx === 0);
+                const isLastGroup = (rowIdx === lastGroupIndex && colIdx === lastGroupIndex);
+                
+                if(isFirstGroup) td.className = 'group-1';
+                else if(isLastGroup) td.className = 'group-last';
+                else {
+                    const intensity = (rowIdx + colIdx) / (groupsCount * 2 - 2);
+                    td.style.background = `hsl(${120 - 120 * intensity}, 70%, 85%)`;
+                }
+
+                // Добавление кодов с обработчиками
+                const div = document.createElement('div');
+                div.className = 'codes-list';
+                
+                cell.forEach(risk => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-dark mb-1';
+                    badge.textContent = risk.code;
+                    
+                    // Добавление обработчиков событий
+                    badge.addEventListener('mouseenter', (e) => showTooltip(e, risk));
+                    badge.addEventListener('mousemove', updateTooltipPosition);
+                    badge.addEventListener('mouseleave', hideTooltip);
+                    
+                    div.appendChild(badge);
+                });
+
+                td.appendChild(div);
+                tr.appendChild(td);
+            });
+        });
+
+        container.appendChild(table);
+    };
+
+    renderTopRisks();
+    // Инициализация
+    const matrix = buildMatrix();
+    renderMatrix(matrix);
+});
+</script>
+
+</body>
+</html>

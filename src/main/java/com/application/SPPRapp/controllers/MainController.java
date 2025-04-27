@@ -39,4 +39,15 @@ public class MainController {
         return "uploadResultAVONA";
     }
 
+    @GetMapping("/upload-result-risk-theory")
+    public String uploadResultRiskTheoryPage(Model model) {
+        model.addAttribute("codes", SppRappApplication.dataRiskTheory.getCodes());
+        model.addAttribute("risks", SppRappApplication.dataRiskTheory.getRisks());
+        model.addAttribute("damages", SppRappApplication.dataRiskTheory.getDamages());
+        model.addAttribute("probabilities", SppRappApplication.dataRiskTheory.getProbabilities());
+        model.addAttribute("dangers", SppRappApplication.dataRiskTheory.getDangers());
+        model.addAttribute("borders", SppRappApplication.dataRiskTheory.getBorders());
+        return "uploadResultRiskTheory";
+    }
+
 }

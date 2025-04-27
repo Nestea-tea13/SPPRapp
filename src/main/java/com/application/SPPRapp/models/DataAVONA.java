@@ -72,8 +72,8 @@ public class DataAVONA {
         int n = names.size();
 
         // Начинаем со второй строки (индекс 1), пропуская заголовок
-        for (int rowIdx = 1; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
-            Row row = sheet.getRow(rowIdx);
+        for (int rowId = 1; rowId <= sheet.getLastRowNum(); rowId++) {
+            Row row = sheet.getRow(rowId);
             if (row == null) continue;
 
             double[] rowData = new double[n];
