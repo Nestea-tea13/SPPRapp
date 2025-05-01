@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Результаты экспертного анализа</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        .card-table {
+            margin-bottom: 1rem;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+    
+        .table {
+            margin-bottom: 0;
+            table-layout: fixed;
+            min-width: 100%;
+        }
+    
+        .table thead th, .table th {
+            font-size: 0.9em;
+        }
+    
+        .table th, .table td {
+            text-align: center;
+            vertical-align: middle;
+            white-space: normal;
+        }
+    
+        .card-header {
+            cursor: pointer;
+            padding: 0.75rem 1.25rem;
+            background-color: rgba(0, 0, 0, 0.03);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    
+        .collapse-icon {
+            transition: transform 0.3s ease;
+            margin-left: 1rem;
+        }
+    
+        .collapsed .collapse-icon {
+            transform: rotate(180deg);
+        }
+    
+        .thead-light th {
+            background-color: #f8f9fa;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        /* Жирная граница перед последними двумя столбцами И последней строкой для таблиц экспертов */
+        .expert-table thead th:nth-last-child(3),
+        .expert-table tbody td:nth-last-child(3) {
+            border-right: 2px solid #000 !important;
+        }
+
+        .expert-table thead th:nth-last-child(2),
+        .expert-table thead th:nth-last-child(1),
+        .expert-table tbody td:nth-last-child(2),
+        .expert-table tbody td:nth-last-child(1) {
+            border-left: 2px solid #000 !important;
+        }
+
+        .expert-table tbody tr:last-child td,
+        .expert-table tbody tr:last-child th {
+            border-top: 2px solid #000 !important;
+        }
+
+        /* Жирная граница перед последним столбцом И последней строкой для таблиц экспертов */
+        .result-table thead th:nth-last-child(2),
+        .result-table tbody td:nth-last-child(2) {
+            border-right: 2px solid #000 !important;
+        }
+
+        .result-table tbody tr:last-child td {
+            border-top: 2px solid #000 !important;
+        }
+    </style>
+</head>
+
+<body>
+
+<header th:insert="blocks/header.html :: header-simple"></header>
+
+<div class="container mt-5">
+    <h4 class="text-center mb-4">Экспертный метод</h4>
+
+    <!-- таблица со шкалой относительной важности -->
+    <div class="card card-table mb-4">
+        <div class="card-header" data-toggle="collapse" 
+            data-target="#importanceScale" 
+            aria-expanded="false">
+            <h5>Шкала относительной важности</h5>
+            <span class="collapse-icon">▼</span>
+        </div>
+        
+        <div id="importanceScale" class="collapse show">
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="table table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Интенсивность относительной важности</th>
+                                <th>Определение</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>0</td><td>Варианты не сравнимы</td></tr>
+                            <tr><td>1</td><td>Равная важность</td></tr>
+                            <tr><td>3</td><td>Умеренное превосходство одного над другим</td></tr>
+                            <tr><td>5</td><td>Существенное или сильное превосходство</td></tr>
+                            <tr><td>7</td><td>Значительное превосходство</td></tr>
+                            <tr><td>9</td><td>Очень сильное превосходство</td></tr>
+                            <tr><td>2,4,6,8</td><td>Промежуточные решения между двумя соседними суждениями</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Карточки с таблицами экспертов -->
+    <div class="card card-table" th:each="evaluation, iter : ${evaluations}">
+        <div class="card-header" data-toggle="collapse" 
+             th:data-target="'#collapse_' + ${iter.index}" 
+             aria-expanded="false">
+            <h5>Матрица парных сравнений эксперта [[${iter.index + 1}]]</h5>
+            <span class="collapse-icon">▼</span>
+        </div>
+        
+        <div th:id="'collapse_' + ${iter.index}" class="collapse">
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="table table-bordered expert-table">
+                        <thead class="thead-light">
+                            <tr>
+                                <th></th>
+                                <th th:each="criterion : ${criteria}" th:text="${criterion}"></th>
+                                <th>A (вектор матрицы)</th>
+                                <th>X (вектор приоритетов)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="row, rowIter : ${evaluation}">
+                                <th class="bg-light" th:text="${criteria[rowIter.index]}"></th>
+                                <td th:each="value : ${row}" th:text="${#numbers.formatDecimal(value, 1, 3)}"></td>
+                                <td th:text="${#numbers.formatDecimal(eigenvectorOfMatrix[iter.index][rowIter.index], 1, 4)}"></td>
+                                <td th:text="${#numbers.formatDecimal(priorityVector[iter.index][rowIter.index], 1, 4)}"></td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light">Сумма</th>
+                                <td th:each="value : ${evaluationsSum[iter.index]}" th:text="${#numbers.formatDecimal(value, 1, 3)}"></td>
+                                <td th:text="${#numbers.formatDecimal(eigenvectorOfMatrixSum[iter.index], 1, 4)}"></td>
+                                <td th:text="${#numbers.formatDecimal(priorityVectorSum[iter.index], 1, 4)}" th:style="'background-color: #90EE90;'"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Карточка "Расчет параметров" -->
+    <div class="card card-table mb-4">
+        <div class="card-header" data-toggle="collapse" 
+             data-target="#collapse_params" 
+             aria-expanded="false">
+            <h5>Расчет параметров</h5>
+            <span class="collapse-icon">▼</span>
+        </div>
+        
+        
+        <div id="collapse_params" class="collapse show">
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="table table-bordered">
+                        <thead class="thead-light">
+                            <tr>
+                                <th></th>
+                                <th>λ (лямбда)</th>
+                                <th>ИС</th>
+                                <th>ПСС</th>
+                                <th>ПОС</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="lambda, iter : ${lambdas}">
+                                <th class="bg-light">Эксперт [[${iter.index}+1]]</th>
+                                <td th:text="${#numbers.formatDecimal(lambda, 1, 2)}"></td>
+                                <td th:text="${#numbers.formatDecimal(ISs[iter.index], 1, 2)}"></td>
+                                <td th:text="${#numbers.formatDecimal(SSs[iter.index], 1, 2)}"></td>
+                                <td th:text="${#numbers.formatDecimal(OSs[iter.index], 1, 2)}"  
+                                    th:style="${OSs[iter.index] < 0.2} ? 'background-color: #90EE90;' : 'background-color: #FFB6C1;'"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Карточка "Значение показателя случайной согласованности" -->
+    <div class="card card-table mb-4">
+        <div class="card-header" data-toggle="collapse" 
+             data-target="#collapse_rci" 
+             aria-expanded="false">
+            <h5>Значение показателя случайной согласованности</h5>
+            <span class="collapse-icon">▼</span>
+        </div>
+        
+        <div id="collapse_rci" class="collapse show">
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <th class="bg-light">Размер матрицы</th>
+                                <td>1</td>
+                                <td>2</td>
+                                <td>3</td>
+                                <td>4</td>
+                                <td>5</td>
+                                <td>6</td>
+                                <td>7</td>
+                                <td>8</td>
+                                <td>9</td>
+                                <td>>=10</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light">ПСС</th>
+                                <td>0</td>
+                                <td>0</td>
+                                <td>0.58</td>
+                                <td>0.90</td>
+                                <td>1.12</td>
+                                <td>1.24</td>
+                                <td>1.32</td>
+                                <td>1.41</td>
+                                <td>1.45</td>
+                                <td>1.49</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Карточка "Определение общего мнения членов экспертной группы" -->
+    <div class="card card-table mb-4">
+        <div class="card-header" data-toggle="collapse" 
+             data-target="#collapse_group_opinion" 
+             aria-expanded="false">
+            <h5>Определение общего мнения членов экспертной группы</h5>
+            <span class="collapse-icon">▼</span>
+        </div>
+        
+        <div id="collapse_group_opinion" class="collapse show">
+            <div class="card-body p-0">
+                <div class="table-container">
+                    <table class="table table-bordered result-table">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Критерии</th>
+                                <th th:each="expert : ${OMExperts}" th:text="${expert}"></th>
+                                <th>Общее мнение</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="criterion, critIter : ${criteria}">
+                                <th class="bg-light" th:text="${criterion}"></th>
+                                <td th:each="expert, expIter : ${evaluations}" th:if="${OSs[expIter.index]} <= 0.2"
+                                    th:text="${#numbers.formatDecimal(priorityVector[expIter.index][critIter.index], 1, 4)}"></td>
+                                <td th:text="${#numbers.formatDecimal(OMs[critIter.index], 1, 4)}"></td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light">Сумма</th>
+                                <td th:each="sum, iter : ${priorityVectorSum}"  th:if="${OSs[iter.index]} <= 0.2" 
+                                    th:text="${#numbers.formatDecimal(sum, 1, 2)}"></td>
+                                <td th:text="${#numbers.formatDecimal(OMsum, 1, 2)}"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="/" class="btn btn-outline-secondary">На главную</a>
+    </div><br>
+</div>
+
+</body>
+</html>

@@ -50,4 +50,24 @@ public class MainController {
         return "uploadResultRiskTheory";
     }
 
+    @GetMapping("/upload-result-expert-methods")
+    public String uploadResultExpertMethodsPage(Model model) {
+        model.addAttribute("numCriteria", SppRappApplication.dataExpertMethods.getNumCriteria());
+        model.addAttribute("criteria", SppRappApplication.dataExpertMethods.getCriteria());
+        model.addAttribute("evaluations", SppRappApplication.dataExpertMethods.getEvaluations());
+        model.addAttribute("eigenvectorOfMatrix", SppRappApplication.dataExpertMethods.getEigenvectorOfMatrix());
+        model.addAttribute("eigenvectorOfMatrixSum", SppRappApplication.dataExpertMethods.getEigenvectorOfMatrixSum());
+        model.addAttribute("priorityVector", SppRappApplication.dataExpertMethods.getPriorityVector());
+        model.addAttribute("priorityVectorSum", SppRappApplication.dataExpertMethods.getPriorityVectorSum());
+        model.addAttribute("evaluationsSum", SppRappApplication.dataExpertMethods.getEvaluationsSum());
+        model.addAttribute("lambdas", SppRappApplication.dataExpertMethods.getLambda());
+        model.addAttribute("ISs", SppRappApplication.dataExpertMethods.getIS());
+        model.addAttribute("SSs", SppRappApplication.dataExpertMethods.getSS());
+        model.addAttribute("OSs", SppRappApplication.dataExpertMethods.getOS());
+        model.addAttribute("OMs", SppRappApplication.dataExpertMethods.getOM());
+        model.addAttribute("OMExperts", SppRappApplication.dataExpertMethods.getOMExperts());
+        model.addAttribute("OMsum", SppRappApplication.dataExpertMethods.getOMsum());
+        return "uploadResultExpertMethods";
+    }
+
 }

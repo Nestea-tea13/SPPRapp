@@ -49,4 +49,27 @@ public class ExcelWorkController {
         return "redirect:/upload-result-risk-theory";
     }
 
+    @PostMapping("/upload-data-expert-methods")
+    public String handleFileUploadExpertMethods(MultipartFile file, Model model) {
+        if (file.isEmpty()) {
+            model.addAttribute("message", "Пожалуйста, выберите файл для загрузки.");
+            return "main";
+        }
+
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+            int sheetCount = workbook.getNumberOfSheets();
+            Sheet[] sheets = new Sheet[sheetCount];
+            
+            for (int i = 0; i < sheetCount; i++) {
+                sheets[i] = workbook.getSheetAt(i);
+            }
+            
+            SppRappApplication.dataExpertMethods.ReadData(sheets);
+        } catch (IOException e) {
+        model.addAttribute("message", "Ошибка при чтении файла: " + e.getMessage());
+        }
+
+        return "redirect:/upload-result-expert-methods";
+    }
+
 }

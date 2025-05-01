@@ -11,10 +11,46 @@
 
     <header th:insert="blocks/header.html :: header-simple"></header>
 
-    Expert Methods page
+    <div class="container mt-5">
+        <h4 class="text-center">Экспертные методы</h4>
+        <form id="uploadForm" action="/upload-data-expert-methods" method="post" enctype="multipart/form-data" class="text-center mt-4">
+            <div class="form-group">
+                <label for="fileInput" class="btn btn-outline-primary btn-lg">Загрузка входных данных</label>
+                <input type="file" id="fileInput" name="file" class="form-control-file d-none" accept=".xls,.xlsx" required>
+            </div>
+        </form>
+    
+        <div class="card mx-auto" style="width: 60%;">
+            <div class="card-body">
+                <p class="text-center"><u>Описание формата excel-файла для корректного считывания входных данных</u></p>
+                <ol class="mb-0">
+                    <li>Первый лист:</li>
+                        <ul>
+                            <li class="mt-2">Столбец A - Перечень критериев</li>
+                        </ul>
+                        <li>Второй лист и далее:</li>
+                        <ul>
+                            <li class="mt-2">Со столбца A и далее по количеству критериев - заполнение матрицы парных сравнений по диагонали и выше</li>
+                        </ul>
+                </ol>
+            </div>
+        </div>
+
+        <br>
+        <div class="text-center mb-4"><a href="/" class="btn btn-outline-secondary">Вернуться на главную страницу</a></div>
+        
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function () {
+            const form = document.getElementById('uploadForm');
+            if (this.files.length > 0) {
+                form.submit();
+            }
+        });
+    </script>
 
 </body>
 
